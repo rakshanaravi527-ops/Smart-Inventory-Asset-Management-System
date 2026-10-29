@@ -1,0 +1,40 @@
+b1faa984531511ce160292513750cae8
+/**
+ * @file Zod Validation Middleware Factory
+ * @description Validates request body, query params, or route params
+ * against a Zod schema before the route handler runs.
+ */
+
+/**
+ * Create a validation middleware for the given Zod schema.
+ * @param {import('zod').ZodSchema} schema - The Zod schema to validate against
+ * @param {'body'|'query'|'params'} source - Which part of the request to validate
+ * @returns {Function} Express middleware
+ */
+function validate(schema, source = 'body') {
+  return (req, res, next) => {
+    try {
+      const result = schema.safeParse(req[source]);
+      if (!result.success) {
+        const issues = result.error.issues || result.error.errors || [];
+        const errors = issues.map(e => ({
+          field: e.path.join('.'),
+          message: e.message
+        }));
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors
+        });
+      }
+
+      // Replace source data with parsed (coerced/defaulted) values
+      req[source] = result.data;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+module.exports = validate;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJ2YWxpZGF0ZSIsInNjaGVtYSIsInNvdXJjZSIsInJlcSIsInJlcyIsIm5leHQiLCJyZXN1bHQiLCJzYWZlUGFyc2UiLCJzdWNjZXNzIiwiaXNzdWVzIiwiZXJyb3IiLCJlcnJvcnMiLCJtYXAiLCJlIiwiZmllbGQiLCJwYXRoIiwiam9pbiIsIm1lc3NhZ2UiLCJzdGF0dXMiLCJqc29uIiwiZGV0YWlscyIsImRhdGEiLCJlcnIiLCJtb2R1bGUiLCJleHBvcnRzIl0sInNvdXJjZXMiOlsidmFsaWRhdGUuanMiXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBAZmlsZSBab2QgVmFsaWRhdGlvbiBNaWRkbGV3YXJlIEZhY3RvcnlcbiAqIEBkZXNjcmlwdGlvbiBWYWxpZGF0ZXMgcmVxdWVzdCBib2R5LCBxdWVyeSBwYXJhbXMsIG9yIHJvdXRlIHBhcmFtc1xuICogYWdhaW5zdCBhIFpvZCBzY2hlbWEgYmVmb3JlIHRoZSByb3V0ZSBoYW5kbGVyIHJ1bnMuXG4gKi9cblxuLyoqXG4gKiBDcmVhdGUgYSB2YWxpZGF0aW9uIG1pZGRsZXdhcmUgZm9yIHRoZSBnaXZlbiBab2Qgc2NoZW1hLlxuICogQHBhcmFtIHtpbXBvcnQoJ3pvZCcpLlpvZFNjaGVtYX0gc2NoZW1hIC0gVGhlIFpvZCBzY2hlbWEgdG8gdmFsaWRhdGUgYWdhaW5zdFxuICogQHBhcmFtIHsnYm9keSd8J3F1ZXJ5J3wncGFyYW1zJ30gc291cmNlIC0gV2hpY2ggcGFydCBvZiB0aGUgcmVxdWVzdCB0byB2YWxpZGF0ZVxuICogQHJldHVybnMge0Z1bmN0aW9ufSBFeHByZXNzIG1pZGRsZXdhcmVcbiAqL1xuZnVuY3Rpb24gdmFsaWRhdGUoc2NoZW1hLCBzb3VyY2UgPSAnYm9keScpIHtcbiAgcmV0dXJuIChyZXEsIHJlcywgbmV4dCkgPT4ge1xuICAgIHRyeSB7XG4gICAgICBjb25zdCByZXN1bHQgPSBzY2hlbWEuc2FmZVBhcnNlKHJlcVtzb3VyY2VdKTtcblxuICAgICAgaWYgKCFyZXN1bHQuc3VjY2Vzcykge1xuICAgICAgICBjb25zdCBpc3N1ZXMgPSByZXN1bHQuZXJyb3IuaXNzdWVzIHx8IHJlc3VsdC5lcnJvci5lcnJvcnMgfHwgW107XG4gICAgICAgIGNvbnN0IGVycm9ycyA9IGlzc3Vlcy5tYXAoKGUpID0+ICh7XG4gICAgICAgICAgZmllbGQ6IGUucGF0aC5qb2luKCcuJyksXG4gICAgICAgICAgbWVzc2FnZTogZS5tZXNzYWdlLFxuICAgICAgICB9KSk7XG5cbiAgICAgICAgcmV0dXJuIHJlcy5zdGF0dXMoNDAwKS5qc29uKHtcbiAgICAgICAgICBzdWNjZXNzOiBmYWxzZSxcbiAgICAgICAgICBlcnJvcjogJ1ZhbGlkYXRpb24gZmFpbGVkJyxcbiAgICAgICAgICBkZXRhaWxzOiBlcnJvcnMsXG4gICAgICAgIH0pO1xuICAgICAgfVxuXG4gICAgICAvLyBSZXBsYWNlIHNvdXJjZSBkYXRhIHdpdGggcGFyc2VkIChjb2VyY2VkL2RlZmF1bHRlZCkgdmFsdWVzXG4gICAgICByZXFbc291cmNlXSA9IHJlc3VsdC5kYXRhO1xuICAgICAgbmV4dCgpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgbmV4dChlcnIpO1xuICAgIH1cbiAgfTtcbn1cblxubW9kdWxlLmV4cG9ydHMgPSB2YWxpZGF0ZTtcbiJdLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUFFQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQSxTQUFTQSxRQUFRQSxDQUFDQyxNQUFNLEVBQUVDLE1BQU0sR0FBRyxNQUFNLEVBQUU7RUFDekMsT0FBTyxDQUFDQyxHQUFHLEVBQUVDLEdBQUcsRUFBRUMsSUFBSSxLQUFLO0lBQ3pCLElBQUk7TUFDRixNQUFNQyxNQUFNLEdBQUdMLE1BQU0sQ0FBQ00sU0FBUyxDQUFDSixHQUFHLENBQUNELE1BQU0sQ0FBQyxDQUFDO01BRTVDLElBQUksQ0FBQ0ksTUFBTSxDQUFDRSxPQUFPLEVBQUU7UUFDbkIsTUFBTUMsTUFBTSxHQUFHSCxNQUFNLENBQUNJLEtBQUssQ0FBQ0QsTUFBTSxJQUFJSCxNQUFNLENBQUNJLEtBQUssQ0FBQ0MsTUFBTSxJQUFJLEVBQUU7UUFDL0QsTUFBTUEsTUFBTSxHQUFHRixNQUFNLENBQUNHLEdBQUcsQ0FBRUMsQ0FBQyxLQUFNO1VBQ2hDQyxLQUFLLEVBQUVELENBQUMsQ0FBQ0UsSUFBSSxDQUFDQyxJQUFJLENBQUMsR0FBRyxDQUFDO1VBQ3ZCQyxPQUFPLEVBQUVKLENBQUMsQ0FBQ0k7UUFDYixDQUFDLENBQUMsQ0FBQztRQUVILE9BQU9iLEdBQUcsQ0FBQ2MsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDQyxJQUFJLENBQUM7VUFDMUJYLE9BQU8sRUFBRSxLQUFLO1VBQ2RFLEtBQUssRUFBRSxtQkFBbUI7VUFDMUJVLE9BQU8sRUFBRVQ7UUFDWCxDQUFDLENBQUM7TUFDSjs7TUFFQTtNQUNBUixHQUFHLENBQUNELE1BQU0sQ0FBQyxHQUFHSSxNQUFNLENBQUNlLElBQUk7TUFDekJoQixJQUFJLENBQUMsQ0FBQztJQUNSLENBQUMsQ0FBQyxPQUFPaUIsR0FBRyxFQUFFO01BQ1pqQixJQUFJLENBQUNpQixHQUFHLENBQUM7SUFDWDtFQUNGLENBQUM7QUFDSDtBQUVBQyxNQUFNLENBQUNDLE9BQU8sR0FBR3hCLFFBQVEiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -1,0 +1,64 @@
+048ed97c6f6578938d3f4fed8a7d001c
+/**
+ * @file Audit Logging Middleware
+ * @description Records CREATE, UPDATE, DELETE actions to the AuditLog table.
+ * Can be used as middleware or called directly as a utility.
+ */
+
+const prisma = require('../config/db');
+
+/**
+ * Record an audit log entry.
+ * @param {object} params
+ * @param {string} params.action - CREATE, UPDATE, DELETE, CHECKOUT, CHECKIN
+ * @param {string} params.entityType - Entity being acted on (Asset, User, Department, etc.)
+ * @param {string} [params.entityId] - ID of the entity
+ * @param {string} [params.userId] - User performing the action
+ * @param {object} [params.oldValue] - Previous state (for updates/deletes)
+ * @param {object} [params.newValue] - New state (for creates/updates)
+ * @param {string} [params.assetId] - Related asset ID (if applicable)
+ * @returns {Promise<object>} Created audit log entry
+ */
+async function createAuditLog({
+  action,
+  entityType,
+  entityId,
+  userId,
+  oldValue,
+  newValue,
+  assetId
+}) {
+  try {
+    return await prisma.auditLog.create({
+      data: {
+        action,
+        entityType,
+        entityId: entityId || null,
+        userId: userId || null,
+        oldValue: oldValue ? JSON.stringify(oldValue) : null,
+        newValue: newValue ? JSON.stringify(newValue) : null,
+        assetId: assetId || null
+      }
+    });
+  } catch (err) {
+    // Audit logging should never crash the request — log and continue
+    console.error('[Audit] Failed to create audit log:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Express middleware that automatically creates an audit log after
+ * successful mutating requests (POST, PATCH, PUT, DELETE).
+ * Attaches createAuditLog to req for manual use in route handlers.
+ */
+function auditMiddleware(req, res, next) {
+  // Attach the helper to req so route handlers can call it directly
+  req.audit = createAuditLog;
+  next();
+}
+module.exports = {
+  auditMiddleware,
+  createAuditLog
+};
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJwcmlzbWEiLCJyZXF1aXJlIiwiY3JlYXRlQXVkaXRMb2ciLCJhY3Rpb24iLCJlbnRpdHlUeXBlIiwiZW50aXR5SWQiLCJ1c2VySWQiLCJvbGRWYWx1ZSIsIm5ld1ZhbHVlIiwiYXNzZXRJZCIsImF1ZGl0TG9nIiwiY3JlYXRlIiwiZGF0YSIsIkpTT04iLCJzdHJpbmdpZnkiLCJlcnIiLCJjb25zb2xlIiwiZXJyb3IiLCJtZXNzYWdlIiwiYXVkaXRNaWRkbGV3YXJlIiwicmVxIiwicmVzIiwibmV4dCIsImF1ZGl0IiwibW9kdWxlIiwiZXhwb3J0cyJdLCJzb3VyY2VzIjpbImF1ZGl0LmpzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogQGZpbGUgQXVkaXQgTG9nZ2luZyBNaWRkbGV3YXJlXG4gKiBAZGVzY3JpcHRpb24gUmVjb3JkcyBDUkVBVEUsIFVQREFURSwgREVMRVRFIGFjdGlvbnMgdG8gdGhlIEF1ZGl0TG9nIHRhYmxlLlxuICogQ2FuIGJlIHVzZWQgYXMgbWlkZGxld2FyZSBvciBjYWxsZWQgZGlyZWN0bHkgYXMgYSB1dGlsaXR5LlxuICovXG5cbmNvbnN0IHByaXNtYSA9IHJlcXVpcmUoJy4uL2NvbmZpZy9kYicpO1xuXG4vKipcbiAqIFJlY29yZCBhbiBhdWRpdCBsb2cgZW50cnkuXG4gKiBAcGFyYW0ge29iamVjdH0gcGFyYW1zXG4gKiBAcGFyYW0ge3N0cmluZ30gcGFyYW1zLmFjdGlvbiAtIENSRUFURSwgVVBEQVRFLCBERUxFVEUsIENIRUNLT1VULCBDSEVDS0lOXG4gKiBAcGFyYW0ge3N0cmluZ30gcGFyYW1zLmVudGl0eVR5cGUgLSBFbnRpdHkgYmVpbmcgYWN0ZWQgb24gKEFzc2V0LCBVc2VyLCBEZXBhcnRtZW50LCBldGMuKVxuICogQHBhcmFtIHtzdHJpbmd9IFtwYXJhbXMuZW50aXR5SWRdIC0gSUQgb2YgdGhlIGVudGl0eVxuICogQHBhcmFtIHtzdHJpbmd9IFtwYXJhbXMudXNlcklkXSAtIFVzZXIgcGVyZm9ybWluZyB0aGUgYWN0aW9uXG4gKiBAcGFyYW0ge29iamVjdH0gW3BhcmFtcy5vbGRWYWx1ZV0gLSBQcmV2aW91cyBzdGF0ZSAoZm9yIHVwZGF0ZXMvZGVsZXRlcylcbiAqIEBwYXJhbSB7b2JqZWN0fSBbcGFyYW1zLm5ld1ZhbHVlXSAtIE5ldyBzdGF0ZSAoZm9yIGNyZWF0ZXMvdXBkYXRlcylcbiAqIEBwYXJhbSB7c3RyaW5nfSBbcGFyYW1zLmFzc2V0SWRdIC0gUmVsYXRlZCBhc3NldCBJRCAoaWYgYXBwbGljYWJsZSlcbiAqIEByZXR1cm5zIHtQcm9taXNlPG9iamVjdD59IENyZWF0ZWQgYXVkaXQgbG9nIGVudHJ5XG4gKi9cbmFzeW5jIGZ1bmN0aW9uIGNyZWF0ZUF1ZGl0TG9nKHsgYWN0aW9uLCBlbnRpdHlUeXBlLCBlbnRpdHlJZCwgdXNlcklkLCBvbGRWYWx1ZSwgbmV3VmFsdWUsIGFzc2V0SWQgfSkge1xuICB0cnkge1xuICAgIHJldHVybiBhd2FpdCBwcmlzbWEuYXVkaXRMb2cuY3JlYXRlKHtcbiAgICAgIGRhdGE6IHtcbiAgICAgICAgYWN0aW9uLFxuICAgICAgICBlbnRpdHlUeXBlLFxuICAgICAgICBlbnRpdHlJZDogZW50aXR5SWQgfHwgbnVsbCxcbiAgICAgICAgdXNlcklkOiB1c2VySWQgfHwgbnVsbCxcbiAgICAgICAgb2xkVmFsdWU6IG9sZFZhbHVlID8gSlNPTi5zdHJpbmdpZnkob2xkVmFsdWUpIDogbnVsbCxcbiAgICAgICAgbmV3VmFsdWU6IG5ld1ZhbHVlID8gSlNPTi5zdHJpbmdpZnkobmV3VmFsdWUpIDogbnVsbCxcbiAgICAgICAgYXNzZXRJZDogYXNzZXRJZCB8fCBudWxsLFxuICAgICAgfSxcbiAgICB9KTtcbiAgfSBjYXRjaCAoZXJyKSB7XG4gICAgLy8gQXVkaXQgbG9nZ2luZyBzaG91bGQgbmV2ZXIgY3Jhc2ggdGhlIHJlcXVlc3Qg4oCUIGxvZyBhbmQgY29udGludWVcbiAgICBjb25zb2xlLmVycm9yKCdbQXVkaXRdIEZhaWxlZCB0byBjcmVhdGUgYXVkaXQgbG9nOicsIGVyci5tZXNzYWdlKTtcbiAgICByZXR1cm4gbnVsbDtcbiAgfVxufVxuXG4vKipcbiAqIEV4cHJlc3MgbWlkZGxld2FyZSB0aGF0IGF1dG9tYXRpY2FsbHkgY3JlYXRlcyBhbiBhdWRpdCBsb2cgYWZ0ZXJcbiAqIHN1Y2Nlc3NmdWwgbXV0YXRpbmcgcmVxdWVzdHMgKFBPU1QsIFBBVENILCBQVVQsIERFTEVURSkuXG4gKiBBdHRhY2hlcyBjcmVhdGVBdWRpdExvZyB0byByZXEgZm9yIG1hbnVhbCB1c2UgaW4gcm91dGUgaGFuZGxlcnMuXG4gKi9cbmZ1bmN0aW9uIGF1ZGl0TWlkZGxld2FyZShyZXEsIHJlcywgbmV4dCkge1xuICAvLyBBdHRhY2ggdGhlIGhlbHBlciB0byByZXEgc28gcm91dGUgaGFuZGxlcnMgY2FuIGNhbGwgaXQgZGlyZWN0bHlcbiAgcmVxLmF1ZGl0ID0gY3JlYXRlQXVkaXRMb2c7XG4gIG5leHQoKTtcbn1cblxubW9kdWxlLmV4cG9ydHMgPSB7IGF1ZGl0TWlkZGxld2FyZSwgY3JlYXRlQXVkaXRMb2cgfTtcbiJdLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUFFQSxNQUFNQSxNQUFNLEdBQUdDLE9BQU8sQ0FBQyxjQUFjLENBQUM7O0FBRXRDO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBLGVBQWVDLGNBQWNBLENBQUM7RUFBRUMsTUFBTTtFQUFFQyxVQUFVO0VBQUVDLFFBQVE7RUFBRUMsTUFBTTtFQUFFQyxRQUFRO0VBQUVDLFFBQVE7RUFBRUM7QUFBUSxDQUFDLEVBQUU7RUFDbkcsSUFBSTtJQUNGLE9BQU8sTUFBTVQsTUFBTSxDQUFDVSxRQUFRLENBQUNDLE1BQU0sQ0FBQztNQUNsQ0MsSUFBSSxFQUFFO1FBQ0pULE1BQU07UUFDTkMsVUFBVTtRQUNWQyxRQUFRLEVBQUVBLFFBQVEsSUFBSSxJQUFJO1FBQzFCQyxNQUFNLEVBQUVBLE1BQU0sSUFBSSxJQUFJO1FBQ3RCQyxRQUFRLEVBQUVBLFFBQVEsR0FBR00sSUFBSSxDQUFDQyxTQUFTLENBQUNQLFFBQVEsQ0FBQyxHQUFHLElBQUk7UUFDcERDLFFBQVEsRUFBRUEsUUFBUSxHQUFHSyxJQUFJLENBQUNDLFNBQVMsQ0FBQ04sUUFBUSxDQUFDLEdBQUcsSUFBSTtRQUNwREMsT0FBTyxFQUFFQSxPQUFPLElBQUk7TUFDdEI7SUFDRixDQUFDLENBQUM7RUFDSixDQUFDLENBQUMsT0FBT00sR0FBRyxFQUFFO0lBQ1o7SUFDQUMsT0FBTyxDQUFDQyxLQUFLLENBQUMscUNBQXFDLEVBQUVGLEdBQUcsQ0FBQ0csT0FBTyxDQUFDO0lBQ2pFLE9BQU8sSUFBSTtFQUNiO0FBQ0Y7O0FBRUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBLFNBQVNDLGVBQWVBLENBQUNDLEdBQUcsRUFBRUMsR0FBRyxFQUFFQyxJQUFJLEVBQUU7RUFDdkM7RUFDQUYsR0FBRyxDQUFDRyxLQUFLLEdBQUdyQixjQUFjO0VBQzFCb0IsSUFBSSxDQUFDLENBQUM7QUFDUjtBQUVBRSxNQUFNLENBQUNDLE9BQU8sR0FBRztFQUFFTixlQUFlO0VBQUVqQjtBQUFlLENBQUMiLCJpZ25vcmVMaXN0IjpbXX0=

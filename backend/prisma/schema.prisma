@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("STAFF") // ADMIN, LAB_INCHARGE, STAFF, DEPT_HEAD
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  usageLogs       UsageLog[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  maintenanceLogs MaintenanceLog[] @relation("performedBy")
+  heldAssets      Asset[]          @relation("currentHolder")
+  retiredAssets   Asset[]          @relation("retirementApprover")
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  locations Location[]
+  assets    Asset[]
+}
+
+model Location {
+  id           String     @id @default(uuid())
+  name         String
+  building     String?
+  room         String?
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  assets Asset[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  type      String   @default("instrument") // instrument, computer, furniture, consumable
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets Asset[]
+}
+
+model Asset {
+  id              String    @id @default(uuid())
+  assetCode       String    @unique
+  name            String
+  categoryId      String
+  category        Category  @relation(fields: [categoryId], references: [id])
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  locationId      String?
+  location        Location?  @relation(fields: [locationId], references: [id])
+  serialNumber    String?
+  purchaseDate    DateTime?
+  vendor          String?
+  cost            Float?
+  warrantyExpiry  DateTime?
+  condition       String    @default("Good") // Good, Fair, Poor, Damaged
+  status          String    @default("Available") // Available, InUse, UnderMaintenance, Retired
+  photoUrl        String?
+  currentHolderId String?
+  currentHolder   User?     @relation("currentHolder", fields: [currentHolderId], references: [id])
+  lastCheckedDate DateTime?
+
+  // Consumable fields
+  quantity     Int?
+  minThreshold Int?
+  maxLevel     Int?
+
+  // Retirement fields
+  retirementReason     String?
+  retirementApprovedBy String?
+  retirementApprover   User?   @relation("retirementApprover", fields: [retirementApprovedBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  maintenanceSchedules MaintenanceSchedule[]
+  maintenanceLogs      MaintenanceLog[]
+  usageLogs            UsageLog[]
+  auditLogs            AuditLog[]
+}
+
+model MaintenanceSchedule {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id])
+  type            String   @default("maintenance") // maintenance, calibration, renewal
+  intervalDays    Int
+  alertDaysBefore Int      @default(7)
+  nextDueDate     DateTime
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  maintenanceLogs MaintenanceLog[]
+}
+
+model MaintenanceLog {
+  id            String   @id @default(uuid())
+  assetId       String
+  asset         Asset    @relation(fields: [assetId], references: [id])
+  scheduleId    String?
+  schedule      MaintenanceSchedule? @relation(fields: [scheduleId], references: [id])
+  performedDate DateTime @default(now())
+  type          String
+  performedById String
+  performedBy   User     @relation("performedBy", fields: [performedById], references: [id])
+  cost          Float?
+  notes         String?
+  nextDueDate   DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model UsageLog {
+  id               String    @id @default(uuid())
+  assetId          String
+  asset            Asset     @relation(fields: [assetId], references: [id])
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  purpose          String?
+  checkoutTime     DateTime  @default(now())
+  expectedReturn   DateTime?
+  actualReturn     DateTime?
+  conditionOnReturn String?
+  status           String    @default("CheckedOut") // CheckedOut, Returned, Overdue
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("system") // maintenance, overdue, lowStock, system
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // CREATE, UPDATE, DELETE, CHECKOUT, CHECKIN
+  entityType String   // Asset, User, Department, etc.
+  entityId   String?
+  oldValue   String?  // JSON string
+  newValue   String?  // JSON string
+  assetId    String?
+  asset      Asset?   @relation(fields: [assetId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
